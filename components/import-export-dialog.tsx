@@ -33,7 +33,7 @@ export function ImportExportDialog({ decks, flashcards, selectedDeck, onImport }
   const [isOpen, setIsOpen] = useState(false)
   const [mode, setMode] = useState<"export" | "import">("export")
   const [importMode, setImportMode] = useState<"file" | "url">("file")
-  const [urlInput, setUrlInput] = useState("")
+  const [urlInput, setUrlInput] = useState("https://gist.githubusercontent.com/TheChesireCat/18ae89bc850674d9c91e0ebf17ac08e3/raw/fdc768a24e685bcf64a797fe2d88e740ed708cea/gistfile1.json")
   const [exportScope, setExportScope] = useState<"all" | "deck">("all")
   const [importStrategy, setImportStrategy] = useState<"skip" | "rename" | "replace">("rename")
   const [importStatus, setImportStatus] = useState<{
@@ -229,7 +229,7 @@ export function ImportExportDialog({ decks, flashcards, selectedDeck, onImport }
     setImportStatus({ status: "idle" })
     setMode("export")
     setImportMode("file")
-    setUrlInput("")
+    setUrlInput("https://gist.githubusercontent.com/TheChesireCat/18ae89bc850674d9c91e0ebf17ac08e3/raw/fdc768a24e685bcf64a797fe2d88e740ed708cea/gistfile1.json")
     setExportScope("all")
     setImportStrategy("rename")
   }
@@ -340,7 +340,7 @@ export function ImportExportDialog({ decks, flashcards, selectedDeck, onImport }
                   <Input
                     id="url-input"
                     type="url"
-                    placeholder="https://example.com/flashcards.json"
+                    placeholder="https://gist.githubusercontent.com/TheChesireCat/18ae89bc850674d9c91e0ebf17ac08e3/raw/fdc768a24e685bcf64a797fe2d88e740ed708cea/gistfile1.json"
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     className="text-sm"
