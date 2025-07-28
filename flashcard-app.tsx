@@ -107,14 +107,12 @@ export default function FlashcardApp() {
               </div>
               <div className="flex items-center gap-2">
                 <ThemeToggle />
-                <div className="hidden sm:block">
-                  <ImportExportDialog
-                    decks={decks}
-                    flashcards={flashcards}
-                    selectedDeck={selectedDeck}
-                    onImport={importData}
-                  />
-                </div>
+                <ImportExportDialog
+                  decks={decks}
+                  flashcards={flashcards}
+                  selectedDeck={selectedDeck}
+                  onImport={importData}
+                />
               </div>
             </header>
 
@@ -244,14 +242,6 @@ export default function FlashcardApp() {
                             {selectedDeck ? `${selectedDeck.name} Cards` : "All Cards"} ({selectedDeckCards.length})
                           </CardTitle>
                           <div className="flex flex-col xs:flex-row gap-2 flex-shrink-0">
-                            <div className="sm:hidden">
-                              <ImportExportDialog
-                                decks={decks}
-                                flashcards={flashcards}
-                                selectedDeck={selectedDeck}
-                                onImport={importData}
-                              />
-                            </div>
                             <Button
                               variant="outline"
                               size="sm"
