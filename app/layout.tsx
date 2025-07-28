@@ -5,9 +5,9 @@ import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'L337Deck - SuperMemo Flashcards',
+  description: 'A powerful spaced repetition flashcard application using the SuperMemo algorithm',
+  generator: 'L337Deck',
 }
 
 export default function RootLayout({

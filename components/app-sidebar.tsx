@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { AddDeckForm } from "./add-deck-form"
 import type { Deck, DeckStats } from "../types/flashcard"
+import { NotoV1ClownFace } from "./favicon"
 
 interface AppSidebarProps {
   decks: Deck[]
@@ -39,8 +40,8 @@ export function AppSidebar({
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <BookOpen className="w-6 h-6" />
-          <h2 className="font-semibold">SuperMemo</h2>
+          <NotoV1ClownFace className="w-6 h-6" />
+          <h2 className="font-semibold">L337Deck</h2>
         </div>
       </SidebarHeader>
 

@@ -97,7 +97,7 @@ export default function FlashcardApp() {
               <SidebarTrigger className="-ml-1" />
               <div className="flex-1 min-w-0">
                 <h1 className="text-lg md:text-xl font-semibold truncate">
-                  {selectedDeck ? selectedDeck.name : "SuperMemo Flashcards"}
+                  {selectedDeck ? selectedDeck.name : "L337Deck"}
                 </h1>
                 {selectedDeck?.description && (
                   <p className="text-xs md:text-sm text-muted-foreground truncate hidden sm:block">
