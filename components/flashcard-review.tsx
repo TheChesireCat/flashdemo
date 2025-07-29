@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -48,8 +48,15 @@ export function FlashcardReview({ card, onReview, onNext, cardNumber, totalCards
   const [hasAnswered, setHasAnswered] = useState(false)
   const [showRawHtml, setShowRawHtml] = useState(false)
 
-  // Add safety check for card
-  if (!card) {
+  // freeze the card being shown during the post-answer delay
+  const [displayCard, setDisplayCard] = useState(card)
+
+  useEffect(() => {
+    if (!hasAnswered) setDisplayCard(card)
+  }, [card, hasAnswered])
+
+  // Add safety check for displayCard
+  if (!displayCard) {
     return (
       <Card className="min-h-[250px] md:min-h-[300px]">
         <CardContent className="p-6 md:p-8 flex items-center justify-center">
@@ -67,6 +74,7 @@ export function FlashcardReview({ card, onReview, onNext, cardNumber, totalCards
       setIsFlipped(false)
       setHasAnswered(false)
       setShowRawHtml(false)
+      // displayCard will update from useEffect once hasAnswered becomes false and parent provides new `card`
     }, 1000)
   }
 
@@ -78,8 +86,8 @@ export function FlashcardReview({ card, onReview, onNext, cardNumber, totalCards
     return `${Math.round(interval / 365)} years`
   }
 
-  const currentContent = isFlipped ? card.back : card.front
-  const currentLanguage = isFlipped ? card.backLanguage : card.frontLanguage
+  const currentContent = isFlipped ? displayCard.back : displayCard.front
+  const currentLanguage = isFlipped ? displayCard.backLanguage : displayCard.frontLanguage
 
   return (
     <div className="space-y-4">
@@ -111,7 +119,7 @@ export function FlashcardReview({ card, onReview, onNext, cardNumber, totalCards
             {showRawHtml ? "Rendered" : "Raw"}
           </Button>
           {!isCramMode && (
-            <div className="text-xs md:text-sm text-muted-foreground">Next: {formatInterval(card.interval)}</div>
+            <div className="text-xs md:text-sm text-muted-foreground">Next: {formatInterval(displayCard.interval)}</div>
           )}
           {isCramMode && (
             <div className="text-xs md:text-sm text-orange-600 dark:text-orange-400">
