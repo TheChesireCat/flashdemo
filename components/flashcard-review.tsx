@@ -1,208 +1,260 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Code } from "lucide-react"
-import type { Flashcard } from "../types/flashcard"
+import { CodeDisplay } from "@/components/code-display"
+import { ChevronLeft, ChevronRight, Star } from "lucide-react"
+import type { Flashcard } from "@/types/flashcard"
 import type { SuperMemoGrade } from "supermemo"
-import { CodeDisplay } from "./code-display"
 
 interface FlashcardReviewProps {
   card: Flashcard
   onReview: (grade: SuperMemoGrade) => void
   onNext: () => void
+  onPrevious: () => void
   cardNumber: number
   totalCards: number
   isCramMode?: boolean
   cramSessionStats?: {
     cardsReviewed: number
     correctAnswers: number
-    sessionStartTime: Date
-    totalCards: number
     reviewedCardIds: Set<string>
   }
+  canGoPrevious: boolean
+  canGoNext: boolean
 }
 
-const gradeLabels = {
-  0: "Complete blackout",
-  1: "Incorrect, easy to recall",
-  2: "Incorrect, hard to recall",
-  3: "Correct, very hard",
-  4: "Correct, hard",
-  5: "Correct, easy",
-}
+const GRADES: { value: SuperMemoGrade; label: string; description: string; color: string }[] = [
+  { value: 1, label: "Again", description: "Complete blackout", color: "bg-red-500 hover:bg-red-600" },
+  { value: 2, label: "Hard", description: "Correct response recalled with serious difficulty", color: "bg-orange-500 hover:bg-orange-600" },
+  { value: 3, label: "Good", description: "Correct response with some difficulty", color: "bg-yellow-500 hover:bg-yellow-600" },
+  { value: 4, label: "Easy", description: "Correct response with little difficulty", color: "bg-green-500 hover:bg-green-600" },
+  { value: 5, label: "Perfect", description: "Perfect response with no difficulty", color: "bg-blue-500 hover:bg-blue-600" },
+]
 
-const gradeColors = {
-  0: "bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700",
-  1: "bg-red-400 hover:bg-red-500 dark:bg-red-500 dark:hover:bg-red-600",
-  2: "bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600",
-  3: "bg-yellow-400 hover:bg-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600",
-  4: "bg-blue-400 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600",
-  5: "bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700",
-}
+export function FlashcardReview({
+  card,
+  onReview,
+  onNext,
+  onPrevious,
+  cardNumber,
+  totalCards,
+  isCramMode = false,
+  cramSessionStats,
+  canGoPrevious,
+  canGoNext,
+}: FlashcardReviewProps) {
+  const [showAnswer, setShowAnswer] = useState(false)
+  const [selectedGrade, setSelectedGrade] = useState<SuperMemoGrade | null>(null)
 
-export function FlashcardReview({ card, onReview, onNext, cardNumber, totalCards, isCramMode = false, cramSessionStats }: FlashcardReviewProps) {
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [hasAnswered, setHasAnswered] = useState(false)
-  const [showRawHtml, setShowRawHtml] = useState(false)
-
-  // freeze the card being shown during the post-answer delay
-  const [displayCard, setDisplayCard] = useState(card)
-
-  useEffect(() => {
-    if (!hasAnswered) setDisplayCard(card)
-  }, [card, hasAnswered])
-
-  // Add safety check for displayCard
-  if (!displayCard) {
-    return (
-      <Card className="min-h-[250px] md:min-h-[300px]">
-        <CardContent className="p-6 md:p-8 flex items-center justify-center">
-          <p className="text-muted-foreground">No card available</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const handleGrade = (grade: SuperMemoGrade) => {
+  const handleGradeSelect = (grade: SuperMemoGrade) => {
+    setSelectedGrade(grade)
     onReview(grade)
-    setHasAnswered(true)
+    
+    // Auto-advance after a short delay
     setTimeout(() => {
+      setShowAnswer(false)
+      setSelectedGrade(null)
       onNext()
-      setIsFlipped(false)
-      setHasAnswered(false)
-      setShowRawHtml(false)
-      // displayCard will update from useEffect once hasAnswered becomes false and parent provides new `card`
     }, 1000)
   }
 
-  const formatInterval = (interval: number) => {
-    if (interval < 1) return "Today"
-    if (interval === 1) return "1 day"
-    if (interval < 30) return `${Math.round(interval)} days`
-    if (interval < 365) return `${Math.round(interval / 30)} months`
-    return `${Math.round(interval / 365)} years`
+  const handleNext = () => {
+    setShowAnswer(false)
+    setSelectedGrade(null)
+    onNext()
   }
 
-  const currentContent = isFlipped ? displayCard.back : displayCard.front
-  const currentLanguage = isFlipped ? displayCard.backLanguage : displayCard.frontLanguage
+  const handlePrevious = () => {
+    setShowAnswer(false)
+    setSelectedGrade(null)
+    onPrevious()
+  }
+
+  const isReviewed = cramSessionStats?.reviewedCardIds.has(card.id)
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div className="flex items-center gap-2">
-          {isCramMode ? (
-            <>
-              <Badge variant="outline" className="self-start">
-                {cramSessionStats ? `${cramSessionStats.reviewedCardIds.size}/${cramSessionStats.totalCards} unique` : `Card ${cardNumber} of ${totalCards}`}
-              </Badge>
-              <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs">
-                CRAM MODE
-              </Badge>
-            </>
-          ) : (
-            <Badge variant="outline" className="self-start">
-              Card {cardNumber} of {totalCards}
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {currentLanguage && (
-            <Badge variant="secondary" className="text-xs">
-              {currentLanguage}
-            </Badge>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setShowRawHtml(!showRawHtml)} className="text-xs">
-            <Code className="w-3 h-3 mr-1" />
-            {showRawHtml ? "Rendered" : "Raw"}
-          </Button>
-          {!isCramMode && (
-            <div className="text-xs md:text-sm text-muted-foreground">Next: {formatInterval(displayCard.interval)}</div>
-          )}
+      {/* Card Navigation */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrevious}
+          disabled={!canGoPrevious}
+          className="flex items-center gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        
+        <div className="text-sm text-muted-foreground">
+          Card {cardNumber} of {totalCards}
           {isCramMode && (
-            <div className="text-xs md:text-sm text-orange-600 dark:text-orange-400">
-              Practice mode - intervals not updated
-            </div>
+            <span className="ml-2">
+              ({cramSessionStats?.cardsReviewed || 0} reviewed)
+            </span>
           )}
         </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNext}
+          disabled={!canGoNext}
+          className="flex items-center gap-1"
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
-      <Card className={`min-h-[250px] md:min-h-[300px] ${isCramMode ? 'border-orange-200 dark:border-orange-800' : ''}`}>
-        <CardContent className="p-4 md:p-8">
-          <div className="text-center space-y-4">
-            <div className="text-base md:text-lg font-medium text-muted-foreground">
-              {isFlipped ? "Answer" : "Question"}
-              {isCramMode && (
-                <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                  Practice Mode - No interval updates
-                </div>
+      {/* Flashcard */}
+      <Card className="min-h-[400px] flex flex-col">
+        <CardHeader className="flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">
+              {isCramMode ? "Cram Mode" : "Review"}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {isCramMode && isReviewed && (
+                <Badge variant="secondary" className="text-xs">
+                  Reviewed
+                </Badge>
+              )}
+              {card.frontLanguage && (
+                <Badge variant="outline" className="text-xs">
+                  {card.frontLanguage}
+                </Badge>
               )}
             </div>
-
-            <div className="text-base md:text-xl leading-relaxed min-h-[100px] w-full min-w-0 text-left">
-              {showRawHtml ? (
-                <pre className="w-full max-w-full overflow-x-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs md:text-sm bg-muted p-3 md:p-4 rounded-md font-mono text-left dark:bg-muted dark:text-foreground">
-                  {currentContent}
-                </pre>
-              ) : currentLanguage ? (
-                <div className="w-full max-w-full overflow-x-auto min-w-0">
-                  <CodeDisplay code={currentContent} language={currentLanguage} className="w-full max-w-full text-left" />
-                </div>
-              ) : (
-                <div className="w-full max-w-full overflow-x-auto min-w-0">
-                  <div
-                    className="prose prose-sm md:prose-lg max-w-none text-sm md:text-base dark:prose-invert break-words [overflow-wrap:anywhere] text-left"
-                    dangerouslySetInnerHTML={{ __html: currentContent }}
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex-1 flex flex-col">
+          {/* Front Content */}
+          <div className="flex-1 space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Front</h3>
+              <div className="min-h-[120px] p-4 border rounded-lg bg-muted/50">
+                {card.frontLanguage ? (
+                  <CodeDisplay
+                    code={card.front}
+                    language={card.frontLanguage}
+                    className="text-sm"
                   />
-                </div>
-              )}
+                ) : (
+                  <div
+                    className="prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: card.front }}
+                  />
+                )}
+              </div>
             </div>
 
-            {!isFlipped && (
-              <Button onClick={() => setIsFlipped(true)} className="mt-4" size="sm">
-                <Eye className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+            {/* Answer Section */}
+            {showAnswer && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Back</h3>
+                  <div className="min-h-[120px] p-4 border rounded-lg bg-muted/50">
+                    {card.backLanguage ? (
+                      <CodeDisplay
+                        code={card.back}
+                        language={card.backLanguage}
+                        className="text-sm"
+                      />
+                    ) : (
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: card.back }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Grade Buttons */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground">How well did you know this?</h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {GRADES.map((grade) => (
+                      <Button
+                        key={grade.value}
+                        variant="outline"
+                        className={`justify-start h-auto p-3 ${grade.color} text-white border-0`}
+                        onClick={() => handleGradeSelect(grade.value)}
+                        disabled={selectedGrade !== null}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {Array.from({ length: grade.value }, (_, i) => (
+                              <Star key={i} className="h-3 w-3 fill-current" />
+                            ))}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium">{grade.label}</div>
+                            <div className="text-xs opacity-90">{grade.description}</div>
+                          </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Show Answer Button */}
+            {!showAnswer && (
+              <Button
+                onClick={() => setShowAnswer(true)}
+                className="w-full"
+                size="lg"
+              >
                 Show Answer
               </Button>
+            )}
+          </div>
+
+          {/* Card Stats */}
+          <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
+            <div className="flex justify-between">
+              <span>E-factor: {card.efactor.toFixed(2)}</span>
+              <span>Interval: {card.interval} days</span>
+              <span>Repetitions: {card.repetition}</span>
+            </div>
+            {card.lastReviewed && (
+              <div className="text-center mt-1">
+                Last reviewed: {new Date(card.lastReviewed).toLocaleDateString()}
+              </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {isFlipped && !hasAnswered && (
-        <div className="space-y-3">
-          <div className="text-center text-sm font-medium">How well did you know this?</div>
-
-          <div className="flex justify-center">
-            <div className="w-max inline-flex gap-2 overflow-x-auto pb-2 sm:overflow-visible sm:flex-wrap sm:justify-center">
-              {Object.entries(gradeLabels).map(([grade, label]) => (
-                <Button
-                  key={grade}
-                  onClick={() => handleGrade(Number(grade) as SuperMemoGrade)}
-                  variant="outline"
-                  className={`shrink-0 w-[50px] sm:w-[50px] text-left h-auto p-3 ${gradeColors[Number(grade) as keyof typeof gradeColors]
-                    } text-white border-none touch-manipulation`}
-                  aria-label={`${grade}: ${label}`}
-                >
-                  <div className="space-y-1">
-                    <div className="font-medium text-sm md:text-base">{grade}</div>
-                    {/* <div className="hidden sm:block text-xs opacity-90">{label}</div> */}
-                    {/* keep for a11y on mobile */}
-                    {/* <span className="sr-only">{label}</span> */}
-                  </div>
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {hasAnswered && (
-        <div className="text-center">
-          <div className="text-green-600 dark:text-green-400 font-medium">✓ Reviewed!</div>
-        </div>
-      )}
+      {/* Navigation Controls */}
+      <div className="flex justify-between">
+        <Button
+          variant="outline"
+          onClick={handlePrevious}
+          disabled={!canGoPrevious}
+          className="flex items-center gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous Card
+        </Button>
+        
+        <Button
+          variant="outline"
+          onClick={handleNext}
+          disabled={!canGoNext}
+          className="flex items-center gap-1"
+        >
+          Next Card
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }

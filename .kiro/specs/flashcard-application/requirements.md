@@ -16,6 +16,12 @@ This document specifies the requirements for a comprehensive flashcard applicati
 - Lucide React for consistent iconography
 - Class Variance Authority (CVA) for component variants
 
+**State Management & Data:**
+- Zustand for client-side state management with devtools
+- TanStack Query (React Query) for server state management and caching
+- Supabase for backend database, authentication, and real-time features
+- Local storage for offline persistence and data backup
+
 **Key Libraries:**
 - SuperMemo library for spaced repetition algorithm implementation
 - CodeMirror for syntax-highlighted code editing and display
@@ -26,7 +32,8 @@ This document specifies the requirements for a comprehensive flashcard applicati
 
 **Component Architecture:**
 - Modular component design with separation of concerns
-- Custom hooks for state management (useFlashcards, useToast)
+- Zustand store for global state management
+- Custom hooks for Supabase queries and mutations
 - Responsive design with mobile-first approach
 - Sidebar navigation using Radix UI Sidebar components
 
@@ -123,15 +130,16 @@ This document specifies the requirements for a comprehensive flashcard applicati
 
 ### Requirement 8
 
-**User Story:** As a student, I want my flashcard data to persist between sessions, so that my study progress is maintained.
+**User Story:** As a student, I want my flashcard data to persist between sessions and sync across devices, so that my study progress is maintained and accessible anywhere.
 
 #### Acceptance Criteria
 
-1. WHEN the user creates or modifies flashcards THEN the system SHALL use useFlashcards hook with useEffect to save data to localStorage with FLASHCARDS_STORAGE_KEY
-2. WHEN the user returns to the application THEN the system SHALL load previously saved data using JSON.parse with proper Date object reconstruction
-3. WHEN the user reviews cards THEN the system SHALL persist updated review statistics through localStorage updates triggered by state changes
-4. WHEN the user creates or deletes decks THEN the system SHALL maintain the deck list in storage using DECKS_STORAGE_KEY with automatic persistence
-5. WHEN storage data is corrupted THEN the system SHALL handle JSON parsing errors with try-catch blocks and console.error logging, providing default deck creation as fallback
+1. WHEN the user is authenticated THEN the system SHALL sync data with Supabase database using TanStack Query for caching and state management
+2. WHEN the user is offline THEN the system SHALL use Zustand store with localStorage persistence to maintain functionality
+3. WHEN the user comes back online THEN the system SHALL automatically sync local changes with the database using conflict resolution strategies
+4. WHEN data conflicts occur THEN the system SHALL use database-wins strategy for merging with proper error handling and user notification
+5. WHEN the user creates or modifies data THEN the system SHALL optimistically update the UI while syncing in the background using TanStack Query mutations
+6. WHEN storage data is corrupted THEN the system SHALL handle errors gracefully with fallback to sample data and user notification via toast messages
 
 ### Requirement 9
 
@@ -147,6 +155,19 @@ This document specifies the requirements for a comprehensive flashcard applicati
 6. WHEN no cards exist in the selected deck THEN the system SHALL display an appropriate message in cram mode
 
 ### Requirement 10
+
+**User Story:** As a student, I want to create an account and sign in, so that my flashcard data is securely stored and accessible across devices.
+
+#### Acceptance Criteria
+
+1. WHEN the user visits the application THEN the system SHALL provide authentication options using Supabase Auth
+2. WHEN the user signs up THEN the system SHALL create a secure account with email verification
+3. WHEN the user signs in THEN the system SHALL authenticate them and load their personal flashcard data
+4. WHEN the user is authenticated THEN the system SHALL display user information and sign-out option in the header
+5. WHEN the user signs out THEN the system SHALL clear their session and redirect to the authentication page
+6. WHEN the user is not authenticated THEN the system SHALL work in offline mode with local storage only
+
+### Requirement 11
 
 **User Story:** As a student, I want to toggle between dark and light themes, so that I can study comfortably in different lighting conditions.
 

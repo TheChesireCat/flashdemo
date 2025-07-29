@@ -20,6 +20,8 @@ export function createFlashcard(
   backLanguage?: string,
 ): Flashcard {
   const now = new Date()
+  // Set nextReview to 1 minute ago to ensure cards are immediately due for review
+  const nextReview = new Date(now.getTime() - 60 * 1000)
   return {
     id: crypto.randomUUID(),
     deckId,
@@ -28,7 +30,7 @@ export function createFlashcard(
     frontLanguage,
     backLanguage,
     createdAt: now,
-    nextReview: now,
+    nextReview: nextReview,
     interval: 1,
     repetition: 0,
     efactor: 2.5,

@@ -20,15 +20,19 @@ flashcard-app/
 ```
 
 ### State Management Architecture
-- **useFlashcards Hook**: Central state management for all flashcard operations
-- **Local Storage Persistence**: Automatic data persistence with error handling
+- **Zustand Store**: Global client-side state management with devtools integration
+- **TanStack Query**: Server state management, caching, and synchronization
+- **Supabase Integration**: Backend database, authentication, and real-time features
+- **Local Storage Persistence**: Offline functionality and data backup
 - **React State**: Component-level state for UI interactions
 
 ### Data Flow
 1. User interactions trigger component events
-2. Components call useFlashcards hook methods
-3. Hook updates React state and triggers localStorage persistence
-4. UI re-renders based on updated state
+2. Components call Zustand store actions or TanStack Query mutations
+3. Zustand store updates global state and triggers localStorage persistence
+4. TanStack Query handles server synchronization with optimistic updates
+5. UI re-renders based on updated state from both local and server sources
+6. Sync service manages conflict resolution between local and server data
 
 ## Components and Interfaces
 
@@ -93,13 +97,15 @@ flashcard-app/
 ### Flashcard Interface
 ```typescript
 interface Flashcard {
-  id: string                 // Unique identifier
+  id: string                 // Unique identifier (UUID)
   deckId: string            // Reference to parent deck
+  userId?: string           // Reference to user (for Supabase)
   front: string             // Question content (HTML supported)
   back: string              // Answer content (HTML supported)
   frontLanguage?: string    // Programming language for syntax highlighting
   backLanguage?: string     // Programming language for syntax highlighting
   createdAt: Date          // Creation timestamp
+  updatedAt?: Date         // Last modification timestamp
   lastReviewed?: Date      // Last review timestamp
   nextReview: Date         // Next scheduled review
   interval: number         // Days until next review
@@ -111,12 +117,60 @@ interface Flashcard {
 ### Deck Interface
 ```typescript
 interface Deck {
-  id: string              // Unique identifier
+  id: string              // Unique identifier (UUID)
+  userId?: string         // Reference to user (for Supabase)
   name: string           // Display name
   description?: string   // Optional description
   color: string         // CSS class for visual identification
   createdAt: Date       // Creation timestamp
+  updatedAt?: Date      // Last modification timestamp
 }
+```
+
+### Database Schema (Supabase)
+```sql
+-- Users table (handled by Supabase Auth)
+-- auth.users
+
+-- Decks table
+CREATE TABLE decks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  color TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Flashcards table
+CREATE TABLE flashcards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  deck_id UUID REFERENCES decks(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  front TEXT NOT NULL,
+  back TEXT NOT NULL,
+  front_language TEXT,
+  back_language TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_reviewed TIMESTAMPTZ,
+  next_review TIMESTAMPTZ NOT NULL,
+  interval INTEGER DEFAULT 1,
+  repetition INTEGER DEFAULT 0,
+  efactor DECIMAL DEFAULT 2.5
+);
+
+-- Review sessions table (for analytics)
+CREATE TABLE review_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  deck_id UUID REFERENCES decks(id) ON DELETE SET NULL,
+  session_type TEXT CHECK (session_type IN ('spaced_repetition', 'cram')),
+  cards_reviewed INTEGER DEFAULT 0,
+  correct_answers INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 ### Statistics Interfaces
@@ -172,6 +226,78 @@ interface DeckStats extends FlashcardStats {
 - **Jest**: Unit testing framework
 - **React Testing Library**: Component testing utilities
 - **MSW**: API mocking for integration tests
+
+## State Management Implementation
+
+### Zustand Store Architecture
+```typescript
+interface FlashcardState {
+  // Core state
+  flashcards: Flashcard[]
+  decks: Deck[]
+  selectedDeckId: string | null
+  currentCardIndex: number
+  cramMode: boolean
+  
+  // Sync state
+  isOnline: boolean
+  lastSync: Date | null
+  isSyncing: boolean
+  syncError: string | null
+  
+  // Actions
+  setFlashcards: (flashcards: Flashcard[]) => void
+  setDecks: (decks: Deck[]) => void
+  selectDeck: (deckId: string) => void
+  addDeck: (name: string, description?: string) => string
+  addFlashcard: (front: string, back: string, ...) => void
+  reviewCard: (cardId: string, grade: SuperMemoGrade) => void
+  
+  // Computed properties (with memoization)
+  selectedDeck: Deck | undefined
+  reviewCards: Flashcard[]
+  currentCard: Flashcard | undefined
+  deckStats: DeckStats | null
+}
+```
+
+### TanStack Query Integration
+```typescript
+// Query keys for consistent caching
+export const queryKeys = {
+  decks: (userId: string) => ['decks', userId],
+  flashcards: (userId: string, deckId?: string) => ['flashcards', userId, deckId],
+  userStats: (userId: string) => ['userStats', userId],
+}
+
+// Custom hooks for data fetching
+export function useDecks(userId: string | undefined)
+export function useFlashcards(userId: string | undefined, deckId?: string)
+export function useCreateDeck()
+export function useUpdateFlashcard()
+// ... other mutation hooks
+```
+
+### Sync Service Architecture
+```typescript
+export function useSyncService() {
+  // Handles bidirectional sync between Zustand store and Supabase
+  // Implements conflict resolution strategies
+  // Manages online/offline state transitions
+  // Provides optimistic updates with rollback on failure
+}
+```
+
+### Authentication Context
+```typescript
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
+  signOut: () => Promise<void>
+}
+```
 
 ## Performance Considerations
 

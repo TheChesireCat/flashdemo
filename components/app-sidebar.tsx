@@ -25,7 +25,7 @@ interface AppSidebarProps {
   onSelectDeck: (deckId: string) => void
   onAddDeck: (name: string, description?: string) => void
   onDeleteDeck: (deckId: string) => void
-  getDeckStats: (deck: Deck) => DeckStats
+  getDeckStats: (deck: Deck) => DeckStats | null
 }
 
 export function AppSidebar({
@@ -67,16 +67,18 @@ export function AppSidebar({
                             {deck.description && (
                               <div className="text-xs text-muted-foreground truncate">{deck.description}</div>
                             )}
-                            <div className="flex gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs">
-                                {stats.totalCards} cards
-                              </Badge>
-                              {stats.dueCards > 0 && (
-                                <Badge variant="destructive" className="text-xs">
-                                  {stats.dueCards} due
+                            {stats && (
+                              <div className="flex gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {stats.totalCards} cards
                                 </Badge>
-                              )}
-                            </div>
+                                {stats.dueCards > 0 && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    {stats.dueCards} due
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </button>

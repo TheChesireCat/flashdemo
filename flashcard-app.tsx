@@ -1,59 +1,153 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, BookOpen, BarChart3, Code, Edit, Trash2 } from "lucide-react"
+import { Plus, BookOpen, BarChart3, Code, Edit, Trash2, LogOut, User } from "lucide-react"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
-import { useFlashcards } from "./hooks/use-flashcards"
-import { AppSidebar } from "./components/app-sidebar"
-import { AddFlashcardForm } from "./components/add-flashcard-form"
-import { EditFlashcardForm } from "./components/edit-flashcard-form"
-import { FlashcardReview } from "./components/flashcard-review"
-import { StatsDashboard } from "./components/stats-dashboard"
-import { ImportExportDialog } from "./components/import-export-dialog"
-import { CodeDisplay } from "./components/code-display"
-import { ThemeToggle } from "./components/theme-toggle"
-import { CramModeToggle } from "./components/cram-mode-toggle"
-import { CramSessionStats } from "./components/cram-session-stats"
+import { useFlashcards } from "@/hooks/use-flashcards"
+import { useAuth } from "@/contexts/auth-context"
+
+import { useCreateDeck, useDeleteDeck, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-supabase-queries"
+import { AppSidebar } from "@/components/app-sidebar"
+import { AddFlashcardForm } from "@/components/add-flashcard-form"
+import { EditFlashcardForm } from "@/components/edit-flashcard-form"
+import { FlashcardReview } from "@/components/flashcard-review"
+import { StatsDashboard } from "@/components/stats-dashboard"
+import { ImportExportDialog } from "@/components/import-export-dialog"
+import { CodeDisplay } from "@/components/code-display"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { CramModeToggle } from "@/components/cram-mode-toggle"
+import { CramSessionStats } from "@/components/cram-session-stats"
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const TAB_CONTENT_CLS = "space-y-4 min-w-0 w-full max-w-full overflow-x-hidden"
 const INNER_CONTAINER_CLS = "mx-auto w-full min-w-0 max-w-5xl"
 
 export default function FlashcardApp() {
+  const { user, signOut } = useAuth()
+  const [useOnlineMode, setUseOnlineMode] = useState(false)
+  
+  // Use original useFlashcards hook (simpler and more reliable)
   const {
     flashcards,
     decks,
     selectedDeck,
     selectedDeckId,
+    dueCards,
+    cramCards,
     reviewCards,
     currentCard,
     currentCardIndex,
     deckStats,
+    overallStats,
     cramMode,
     cramSessionStats,
     reviewedCardIds,
-    addDeck,
-    deleteDeck,
-    addFlashcard,
-    editFlashcard,
+    addDeck: addDeckLocal,
+    deleteDeck: deleteDeckLocal,
+    addFlashcard: addFlashcardLocal,
+    editFlashcard: editFlashcardLocal,
     importData,
     reviewCard,
     reviewCardInCramMode,
-    deleteCard,
+    deleteCard: deleteFlashcardLocal,
     nextCard,
+    resetSession,
     selectDeck,
     toggleCramMode,
     resetCramSession,
+    getAllCardsForCramReview,
     getFlashcardsByDeck,
     getDeckStats,
   } = useFlashcards()
 
+
+
+
+
+
+
+
+
+
+
+  // TanStack Query mutations
+  const createDeckMutation = useCreateDeck()
+  const deleteDeckMutation = useDeleteDeck()
+  const createFlashcardMutation = useCreateFlashcard()
+  const updateFlashcardMutation = useUpdateFlashcard()
+  const deleteFlashcardMutation = useDeleteFlashcard()
+
   const [activeTab, setActiveTab] = useState("review")
   const [showHtmlInManage, setShowHtmlInManage] = useState(false)
   const [editingCardId, setEditingCardId] = useState<string | null>(null)
+
+  // Enhanced actions that sync with database when online
+  const addDeck = (name: string, description?: string) => {
+    const deckId = addDeckLocal(name, description)
+    
+    if (user && useOnlineMode) {
+      const newDeck = decks.find(deck => deck.id === deckId)
+      if (newDeck) {
+        createDeckMutation.mutate({ deck: newDeck, userId: user.id })
+      }
+    }
+    
+    return deckId
+  }
+
+  const deleteDeck = (deckId: string) => {
+    deleteDeckLocal(deckId)
+    
+    if (user && useOnlineMode) {
+      deleteDeckMutation.mutate({ deckId, userId: user.id })
+    }
+  }
+
+  const addFlashcard = (front: string, back: string, frontLanguage?: string, backLanguage?: string, deckId?: string) => {
+    addFlashcardLocal(front, back, frontLanguage, backLanguage, deckId)
+    
+    if (user && useOnlineMode) {
+      const newCard = flashcards.find(card => 
+        card.front === front && 
+        card.back === back && 
+        card.deckId === (deckId || selectedDeckId)
+      )
+      if (newCard) {
+        createFlashcardMutation.mutate({ flashcard: newCard, userId: user.id })
+      }
+    }
+  }
+
+  const editFlashcard = (cardId: string, front: string, back: string, frontLanguage?: string, backLanguage?: string) => {
+    editFlashcardLocal(cardId, front, back, frontLanguage, backLanguage)
+    
+    if (user && useOnlineMode) {
+      const updatedCard = flashcards.find(card => card.id === cardId)
+      if (updatedCard) {
+        updateFlashcardMutation.mutate({ flashcard: updatedCard, userId: user.id })
+      }
+    }
+  }
+
+  const deleteFlashcard = (cardId: string) => {
+    deleteFlashcardLocal(cardId)
+    
+    if (user && useOnlineMode) {
+      deleteFlashcardMutation.mutate({ flashcardId: cardId, userId: user.id })
+    }
+  }
 
   const handleReview = (grade: any) => {
     if (currentCard) {
@@ -61,6 +155,14 @@ export default function FlashcardApp() {
         reviewCardInCramMode(currentCard.id, grade)
       } else {
         reviewCard(currentCard.id, grade)
+        
+        // Sync review to database if online
+        if (user && useOnlineMode) {
+          const updatedCard = flashcards.find(card => card.id === currentCard.id)
+          if (updatedCard) {
+            updateFlashcardMutation.mutate({ flashcard: updatedCard, userId: user.id })
+          }
+        }
       }
     }
   }
@@ -76,8 +178,13 @@ export default function FlashcardApp() {
     setEditingCardId(null)
   }
 
+  const handleSignOut = async () => {
+    await signOut()
+    setUseOnlineMode(false)
+  }
+
   const selectedDeckCards = selectedDeckId ? getFlashcardsByDeck(selectedDeckId) : []
-  const editingCard = editingCardId ? flashcards.find((card) => card.id === editingCardId) : null
+  const editingCard = editingCardId ? flashcards.find((card: any) => card.id === editingCardId) : null
 
   return (
     <SidebarProvider>
@@ -87,7 +194,29 @@ export default function FlashcardApp() {
         onSelectDeck={selectDeck}
         onAddDeck={addDeck}
         onDeleteDeck={deleteDeck}
-        getDeckStats={getDeckStats}
+        getDeckStats={(deck: any) => {
+          // Return stats for the specific deck
+          const deckCards = flashcards.filter((card: any) => card.deckId === deck.id)
+          if (deckCards.length === 0) return null
+          
+          const now = new Date()
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          
+          return {
+            deckId: deck.id,
+            deckName: deck.name,
+            totalCards: deckCards.length,
+            dueCards: deckCards.filter((card: any) => {
+              const lastReviewed = card.lastReviewed ? new Date(card.lastReviewed) : null
+              return !lastReviewed || now >= new Date(lastReviewed.getTime() + card.interval * 24 * 60 * 60 * 1000)
+            }).length,
+            reviewedToday: deckCards.filter((card: any) => {
+              const lastReviewed = card.lastReviewed ? new Date(card.lastReviewed) : null
+              return lastReviewed && lastReviewed >= today
+            }).length,
+            averageEfactor: deckCards.reduce((sum: number, card: any) => sum + card.efactor, 0) / deckCards.length,
+          }
+        }}
       />
 
       <SidebarInset className="flex-1 min-w-0 overflow-x-hidden">
@@ -106,18 +235,114 @@ export default function FlashcardApp() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {/* Sync Status - only show when authenticated */}
+                {user && useOnlineMode && (
+                  <SyncStatus
+                    isOnline={isOnline}
+                    lastSync={lastSync}
+                    isSyncing={isSyncing}
+                    error={syncError}
+                    onSync={syncWithDatabase}
+                  />
+                )}
+                
                 <ThemeToggle />
+                
                 <ImportExportDialog
                   decks={decks}
                   flashcards={flashcards}
                   selectedDeck={selectedDeck}
                   onImport={importData}
                 />
+                
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="relative">
+                      <User className="h-4 w-4" />
+                      <span className="ml-2 hidden sm:inline">
+                        {user ? user.email : "Guest"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      {user ? user.email : "Guest Mode"}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    
+                    {user ? (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => setUseOnlineMode(!useOnlineMode)}
+                          className="cursor-pointer"
+                        >
+                          {useOnlineMode ? "Switch to Offline" : "Switch to Online"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleSignOut}
+                          className="cursor-pointer text-destructive"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => window.location.href = "/auth"}
+                        className="cursor-pointer"
+                      >
+                        Sign In
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </header>
 
             <div className="p-3 md:p-6 space-y-4 md:space-y-6 overflow-x-hidden">
               {deckStats && <StatsDashboard stats={deckStats} />}
+
+              {/* Debug: Manual initialization button */}
+              {decks.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <h3 className="text-lg font-medium mb-4">No data found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Click the button below to load sample data and get started.
+                    </p>
+                    <Button onClick={initializeWithSampleData}>
+                      Load Sample Data
+                    </Button>
+                    <div className="mt-4 space-y-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          console.log('Testing store - adding a test deck')
+                          const deckId = addDeck('Test Deck', 'Test Description')
+                          console.log('Added deck with ID:', deckId)
+                        }}
+                      >
+                        Test Add Deck
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          console.log('Current store state:', {
+                            decks: decks.length,
+                            flashcards: flashcards.length,
+                            selectedDeckId
+                          })
+                        }}
+                      >
+                        Log Store State
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
                 <TabsList className="grid w-full grid-cols-3 h-10 md:h-auto">
@@ -200,10 +425,13 @@ export default function FlashcardApp() {
                         card={currentCard}
                         onReview={handleReview}
                         onNext={nextCard}
+                        onPrevious={previousCard}
                         cardNumber={currentCardIndex + 1}
                         totalCards={reviewCards.length}
                         isCramMode={cramMode}
                         cramSessionStats={cramMode ? { ...cramSessionStats, reviewedCardIds } : undefined}
+                        canGoPrevious={canGoPrevious}
+                        canGoNext={canGoNext}
                       />
                     ) : (
                       <Card>
@@ -262,7 +490,7 @@ export default function FlashcardApp() {
                         ) : (
                           <div className="text-center space-y-4">
                             <div className="space-y-4">
-                              {selectedDeckCards.map((card) => (
+                              {selectedDeckCards.map((card: any) => (
                                 <div
                                   key={card.id}
                                   className={`p-3 md:p-4 border rounded-lg transition-colors min-w-0 ${editingCardId === card.id ? "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800" : "bg-card"
@@ -356,7 +584,7 @@ export default function FlashcardApp() {
                                     <Button
                                       variant="destructive"
                                       size="sm"
-                                      onClick={() => deleteCard(card.id)}
+                                      onClick={() => deleteFlashcard(card.id)}
                                       disabled={editingCardId !== null}
                                       className="flex-1"
                                     >
@@ -378,6 +606,7 @@ export default function FlashcardApp() {
           </div>
         </div>
       </SidebarInset>
+      <DebugStore />
     </SidebarProvider>
   )
 }
